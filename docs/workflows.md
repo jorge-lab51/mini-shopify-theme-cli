@@ -3,10 +3,18 @@
 ## Trabajo normal
 
 ```bash
-shopset store.myshopify.com 123456789
+shopset mitienda 123456789
 shopget
 spull
 sdev
+```
+
+## Elegir theme
+
+```bash
+shopset mitienda
+slist
+shopset mitienda 123456789
 ```
 
 ## Cambio de pocos archivos
@@ -26,7 +34,7 @@ spush --only \
 ## Cambio estructural sobre un duplicado
 
 ```bash
-shopset store.myshopify.com 123456789
+shopset mitienda 123456789
 shopget
 sdup "IP 4321 | Nueva funcionalidad"
 shopget
@@ -46,4 +54,22 @@ smeta
 ```bash
 shopget
 spublish
+```
+
+## Desde un agente
+
+Cada comando del agente suele correr en un shell nuevo, así que el contexto va en el mismo comando:
+
+```bash
+shopset mitienda 123456789 && spull --only sections/header.liquid
+```
+
+## Modificar el CLI
+
+```bash
+./install.sh --link
+source ~/.zshrc
+# editar src/mini-shopify-theme-cli.zsh
+source ~/.zshrc
+zsh tests/smoke.zsh
 ```

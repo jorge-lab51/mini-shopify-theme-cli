@@ -3,8 +3,13 @@ set -euo pipefail
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 INSTALL_DIR="${HOME}/.mini-shopify-theme-cli"
 mkdir -p "$INSTALL_DIR"
-rm -rf "$INSTALL_DIR/skill"
-cp -R "$REPO_DIR/skill" "$INSTALL_DIR/skill"
+if [[ -L "$INSTALL_DIR/skill" ]]; then
+  # Instalado con ./install.sh --link: se mantiene el enlace al repo.
+  echo "✓ Skill enlazada al repositorio: $(readlink "$INSTALL_DIR/skill")"
+else
+  rm -rf "$INSTALL_DIR/skill"
+  cp -R "$REPO_DIR/skill" "$INSTALL_DIR/skill"
+fi
 
 CODEX_SKILL_DIR="${HOME}/.agents/skills/mini-shopify-theme-cli"
 mkdir -p "$(dirname "$CODEX_SKILL_DIR")"

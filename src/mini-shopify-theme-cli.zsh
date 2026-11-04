@@ -9,8 +9,13 @@ _shopify_check_cli() {
 
 _shopify_check() {
   _shopify_check_cli || return
-  if [[ -z "${SHOP_STORE:-}" || -z "${SHOP_THEME:-}" ]]; then
-    echo "❌ Primero ejecuta: shopset tienda.myshopify.com THEME_ID"
+  if [[ -z "${SHOP_STORE:-}" ]]; then
+    echo "❌ Primero ejecuta: shopset <tienda> <theme-id>"
+    return 1
+  fi
+  if [[ -z "${SHOP_THEME:-}" ]]; then
+    echo "❌ No hay theme seleccionado para $SHOP_STORE."
+    echo "   Usa slist y luego: shopset ${SHOP_STORE%.myshopify.com} <theme-id>"
     return 1
   fi
 }
@@ -18,9 +23,37 @@ _shopify_check() {
 _shopify_check_store() {
   _shopify_check_cli || return
   if [[ -z "${SHOP_STORE:-}" ]]; then
-    echo "❌ Primero ejecuta: shopset tienda.myshopify.com THEME_ID"
+    echo "❌ Primero ejecuta: shopset <tienda> [theme-id]"
     return 1
   fi
+}
+
+# Normaliza la tienda a <handle>.myshopify.com y deja el resultado en REPLY.
+# Acepta: mitienda, mitienda.myshopify.com, https://mitienda.myshopify.com[/admin][/]
+_shopify_normalize_store() {
+  local store="${(L)1}"
+  local handle
+
+  # Quita espacios al inicio y al final.
+  store="${store#"${store%%[![:space:]]*}"}"
+  store="${store%"${store##*[![:space:]]}"}"
+
+  store="${store#http://}"
+  store="${store#https://}"
+  store="${store%/}"
+  store="${store%/admin}"
+
+  [[ "$store" == *.* ]] || store="$store.myshopify.com"
+
+  handle="${store%.myshopify.com}"
+  if [[ "$store" != *.myshopify.com || -z "$handle" || "$handle" == *[^a-z0-9-]* || "$handle" == -* || "$handle" == *- ]]; then
+    echo "❌ Tienda no válida: $1"
+    echo "   Usa el prefijo (mitienda) o el dominio myshopify.com (mitienda.myshopify.com)."
+    echo "   El dominio propio de la tienda no sirve; el .myshopify.com aparece en Settings > Domains."
+    return 1
+  fi
+
+  REPLY="$store"
 }
 
 _shopify_theme_args() {
@@ -42,17 +75,32 @@ _shopify_theme_args() {
 }
 
 shopset() {
-  if [[ -z "${1:-}" || -z "${2:-}" ]]; then
-    echo "Uso: shopset <store.myshopify.com> <theme-id>"
+  if [[ -z "${1:-}" ]]; then
+    echo "Uso: shopset <tienda> [theme-id]"
+    echo "  <tienda>: mitienda o mitienda.myshopify.com"
+    echo "  Sin theme-id selecciona solo la tienda (luego usa slist para elegir)."
     return 1
   fi
 
-  export SHOP_STORE="$1"
-  export SHOP_THEME="$2"
+  local REPLY
+  _shopify_normalize_store "$1" || return
+
+  export SHOP_STORE="$REPLY"
+  if [[ -n "${2:-}" ]]; then
+    export SHOP_THEME="$2"
+  else
+    # Evita quedar apuntando a un theme de la tienda anterior.
+    unset SHOP_THEME
+  fi
 
   echo "✓ Shopify configurado:"
   echo "  Store: $SHOP_STORE"
-  echo "  Theme: $SHOP_THEME"
+  echo "  Theme: ${SHOP_THEME:-"(sin theme)"}"
+
+  if [[ -z "${SHOP_THEME:-}" ]]; then
+    echo
+    echo "  Elige un theme: slist  →  shopset ${SHOP_STORE%.myshopify.com} <theme-id>"
+  fi
 }
 
 shopget() {
@@ -262,7 +310,9 @@ shelp() {
 Mini Shopify Theme CLI
 
 Contexto:
-  shopset <store> <theme-id>   Selecciona tienda y theme para la sesión
+  shopset <store> [theme-id]   Selecciona tienda y theme para la sesión
+                               <store>: mitienda o mitienda.myshopify.com
+                               Sin theme-id: solo tienda (elige con slist)
   shopget                      Muestra el contexto actual
 
 Trabajo diario:
